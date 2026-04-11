@@ -88,7 +88,7 @@ If oFSO.FolderExists(MaestroDir) Then
 End If
 
 ' --- STEP 4: Force Reset Language List (PowerShell Integration) ---
-MsgBox "한컴 입력기 제거 및 입력기 초기화 중...", vbInformation, "CKIRKiller"
+MsgBox "한컴 입력기 제거 제어판 활성화 중...", vbInformation, "CKIRKiller"
 
 Dim psReset
 psReset = "powershell -NoProfile -Command ""$List = New-WinUserLanguageList -Language 'ko-KR'; " & _
@@ -98,6 +98,11 @@ psReset = "powershell -NoProfile -Command ""$List = New-WinUserLanguageList -Lan
           "Start-Process 'ctfmon.exe'"""
 
 oShell.Run psReset, 0, True
+
+Dim unlockCmd
+unlockCmd = "powershell -Command ""$acl = Get-Acl 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'; $rule = New-Object System.Security.AccessControl.RegistryAccessRule ('Administrators','FullControl','Allow'); $acl.SetAccessRule($rule); Set-Acl 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' $acl; Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoControlPanel' -Force"""
+
+oShell.Run unlockCmd, 0, True
 
 MsgBox "작업이 완료되었습니다.", vbInformation, "CKIRKiller"
 
