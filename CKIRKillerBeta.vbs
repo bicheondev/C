@@ -1,6 +1,6 @@
 ' ============================================================
-'   CKIRKiller - User-Centric VBScript Edition (ISE Bypass)
-'   Optimized UX / Minimized Popups / Friendly Tone
+'   CKIRKiller - User-Centric VBScript Edition (Fixed)
+'   Optimized UX / Error Handling / Clean Logic
 ' ============================================================
 
 Option Explicit
@@ -43,14 +43,15 @@ End If
 
 ' ── UX Step 1: Initial Prompt ───────────────────────────────
 Dim nHancomRes
-nHancomRes = MsgBox("한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
-                    "(메모장에 있는 코드를 복붙하는 귀찮음이 있습니다.)" & vbCrLf & vbCrLf & _
+nHancomRes = MsgBox("쾌적한 PC 사용을 위한 환경 최적화를 시작합니다." & vbCrLf & _
+                    "한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
+                    "(메모장에 있는 코드를 복붙하는 과정이 포함됩니다.)" & vbCrLf & vbCrLf & _
                     "진행하려면 '예(Y)', 건너뛰려면 '아니오(N)'를 눌러주세요.", _
                     vbYesNo + vbQuestion, "CKIRKiller 최적화")
 
 
 ' ── Core Processing (Silent & Automated) ────────────────────
-' 1. Prerequisites Download (Runs in sequence as it's required for the next steps)
+' 1. Prerequisites Download
 If Not oFSO.FileExists(GitPath & "\git-bash.exe") Then
     BitsDownload GitURL, GitInstaller
     oShell.Run """" & GitInstaller & """ /VERYSILENT /NORESTART /NOCANCEL /SP-", 0, True
@@ -96,14 +97,17 @@ oTextStream.Close
 oShell.Run "regini.exe """ & reginiPath & """", 0, True
 WScript.Sleep 500
 oFSO.DeleteFile reginiPath, True
-On Error GoTo 0
 
+' Registry values deletion with error suppression
 oReg.DeleteValue HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel"
 oReg.DeleteValue HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSettingsPage"
 oReg.DeleteValue HKEY_CURRENT_USER, "Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel"
+On Error GoTo 0
 
 ' 4. Unlock Windows Key (Scancode Map)
+On Error Resume Next
 oReg.DeleteValue HKEY_LOCAL_MACHINE, "SYSTEM\CurrentControlSet\Control\Keyboard Layout", "Scancode Map"
+On Error GoTo 0
 
 ' 5. Restart Explorer Silently
 KillProcessWMI "explorer.exe"
@@ -112,12 +116,15 @@ oShell.Run "explorer.exe", 0, False
 
 
 ' ── UX Step 2: Hancom Manual Assist (If Requested) ──────────
+Dim psFixTxt : psFixTxt = "" ' Initialize variable to prevent empty reference error
+
 If nHancomRes = vbYes Then
     KillProcessWMI "HncUpdateTray.exe"
     KillProcessWMI "HncIME.exe"
 
-    Dim psFixTxt : psFixTxt = oFSO.GetSpecialFolder(2) & "\HancomFix_Guide.txt"
+    psFixTxt = oFSO.GetSpecialFolder(2) & "\HancomFix_Guide.txt"
     Dim oTxt
+    On Error Resume Next
     Set oTxt = oFSO.CreateTextFile(psFixTxt, True)
     oTxt.WriteLine "=========================================================="
     oTxt.WriteLine " 한컴 입력기 수동 초기화 가이드"
@@ -135,9 +142,8 @@ If nHancomRes = vbYes Then
     oTxt.WriteLine "Start-Process ""ctfmon.exe"""
     oTxt.Close
 
-    ' Open Notepad and ISE without blocking the script (WaitOnReturn = False)
+    ' Open Notepad and ISE
     oShell.Run "notepad.exe """ & psFixTxt & """", 1, False
-    On Error Resume Next
     oShell.Run "powershell_ise.exe", 1, False
     On Error GoTo 0
 End If
@@ -146,15 +152,13 @@ End If
 ' ── UX Step 3: Final Completion & Logoff Prompt ─────────────
 Dim sLogoffMsg
 sLogoffMsg = "모든 최적화 작업이 완료되었습니다!" & vbCrLf & vbCrLf & _
-                 "제어판/Windows 키 해금을 적용하려면 로그아웃이 필요합니다. (데이터 안 날아감)" & vbCrLf & _
-                 "필요하시다면 작업 중인 문서를 모두 저장하시고 '예(Y)'를 눌러 로그아웃하세요."
-
+             "제어판 및 Windows 키 해금을 적용하려면 로그아웃이 필요합니다." & vbCrLf & _
+             "작업 중인 문서를 모두 저장하시고 '예(Y)'를 눌러 로그아웃하세요."
 
 Dim nLogoffRes
 nLogoffRes = MsgBox(sLogoffMsg, vbYesNo + vbInformation, "작업 완료")
 
 If nLogoffRes = vbYes Then
-    ' WMI Forced Logoff
     Dim colOS, objOS
     Set colOS = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2").ExecQuery("Select * from Win32_OperatingSystem")
     For Each objOS In colOS
@@ -162,12 +166,12 @@ If nLogoffRes = vbYes Then
     Next
 End If
 
-' Cleanup guide text
-If oFSO.FileExists(psFixTxt) Then
-    On Error Resume Next
-    oFSO.DeleteFile psFixTxt, True
-    On Error GoTo 0
+' Safe Cleanup
+On Error Resume Next
+If psFixTxt <> "" Then
+    If oFSO.FileExists(psFixTxt) Then oFSO.DeleteFile psFixTxt, True
 End If
+On Error GoTo 0
 
 WScript.Quit
 
