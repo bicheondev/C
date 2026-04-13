@@ -43,8 +43,7 @@ End If
 
 ' ── UX Step 1: Initial Prompt ───────────────────────────────
 Dim nHancomRes
-nHancomRes = MsgBox("쾌적한 PC 사용을 위한 환경 최적화를 시작합니다." & vbCrLf & _
-                    "한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
+nHancomRes = MsgBox("한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
                     "(메모장에 있는 코드를 복붙하는 귀찮음이 있습니다.)" & vbCrLf & vbCrLf & _
                     "진행하려면 '예(Y)', 건너뛰려면 '아니오(N)'를 눌러주세요.", _
                     vbYesNo + vbQuestion, "CKIRKiller 최적화")
