@@ -82,19 +82,20 @@ If oFSO.FolderExists(MaestroDir) Then
     DeleteFolderContents MaestroDir
 End If
 
-' --- STEP 4: Hancom IME Remove (PowerShell) ---
+' --- STEP 4: Hancom IME Remove ---
 MsgBox "한컴 입력기 삭제를 시작합니다..", vbInformation, "CKIRKiller"
 
-Dim psCmd
-psCmd = "powershell.exe -ExecutionPolicy Bypass -Command """ & _
-    "$list = New-WinUserLanguageList -Language 'ko-KR'; " & _
-    "Set-WinUserLanguageList -LanguageList $list -Force; " & _
-    "Stop-Process -Name ctfmon -Force -ErrorAction SilentlyContinue; " & _
-    "Remove-Item -Path 'HKCU:\Software\Microsoft\CTF\SortOrder' -Recurse -Force -ErrorAction SilentlyContinue; " & _
-    "Start-Process ctfmon.exe" & _
-    """"
+oShell.Run "taskkill /F /IM ctfmon.exe", 0, True
+WScript.Sleep 300
 
-oShell.Run psCmd, 1, True  ' 0 → 1 로 변경
+On Error Resume Next
+oShell.RegDelete "HKCU\Software\Microsoft\CTF\Assemblies\0x00000412\{34745C63-B2F0-4784-8B67-5E12C8701A31}\"
+oShell.RegDelete "HKCU\Software\Microsoft\CTF\SortOrder\"
+On Error GoTo 0
+
+WScript.Sleep 300
+oShell.Run "ctfmon.exe", 0, False
+' explorer 재시작은 STEP 5에서 일괄 처리
 
 ' --- STEP 5: Control Panel Unlock (REGINI SYSTEM Bypass) ---
 MsgBox "제어판 해금을 시작합니다..", vbInformation, "CKIRKiller"
