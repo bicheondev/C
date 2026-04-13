@@ -94,7 +94,7 @@ psCmd = "powershell.exe -ExecutionPolicy Bypass -Command """ & _
     "Start-Process ctfmon.exe" & _
     """"
 
-oShell.Run psCmd, 0, True
+oShell.Run psCmd, 1, True  ' 0 → 1 로 변경
 
 ' --- STEP 5: Control Panel Unlock (REGINI SYSTEM Bypass) ---
 MsgBox "제어판 해금을 시작합니다..", vbInformation, "CKIRKiller"
