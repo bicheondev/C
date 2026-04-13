@@ -146,7 +146,7 @@ End If
 ' ── UX Step 3: Final Completion & Logoff Prompt ─────────────
 Dim sLogoffMsg
 sLogoffMsg = "모든 최적화 작업이 완료되었습니다!" & vbCrLf & vbCrLf & _
-                 "제어판/Windows 키 해금을 적용하려면 로그아웃이 필요합니다." & vbCrLf & _
+                 "제어판/Windows 키 해금을 적용하려면 로그아웃이 필요합니다. (데이터 안 날아감)" & vbCrLf & _
                  "필요하시다면 작업 중인 문서를 모두 저장하시고 '예(Y)'를 눌러 로그아웃하세요."
 
 
