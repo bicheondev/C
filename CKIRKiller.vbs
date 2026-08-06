@@ -1,39 +1,39 @@
-' CKIRKiller Bootstrapper (No Korean characters to avoid encoding error)
 Option Explicit
 
-Dim fso, shell, stream, content, tempPath, app
-Set fso = CreateObject("Scripting.FileSystemObject")
-Set shell = CreateObject("WScript.Shell")
+Dim oShell, oFSO, oWMI, oReg
+Set oShell = CreateObject("WScript.Shell")
+Set oFSO   = CreateObject("Scripting.FileSystemObject")
+Set oWMI   = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+Set oReg   = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\default:StdRegProv")
 
-' Check if already running in ANSI mode
-If WScript.Arguments.Count = 0 Then
-    tempPath = shell.ExpandEnvironmentStrings("%TEMP%\ck_ansi.vbs")
-    
-    On Error Resume Next
-    ' Read current file as UTF-8
-    Set stream = CreateObject("ADODB.Stream")
-    stream.Open
-    stream.Type = 2
-    stream.Charset = "utf-8"
-    stream.LoadFromFile WScript.ScriptFullName
-    content = stream.ReadText
-    stream.Close
-    
-    ' Save as ANSI (CP949)
-    Set stream = CreateObject("ADODB.Stream")
-    stream.Open
-    stream.Type = 2
-    stream.Charset = "ks_c_5601-1987"
-    stream.WriteText content
-    stream.SaveToFile tempPath, 2
-    stream.Close
-    On Error GoTo 0
-    
-    ' Execute the fixed ANSI file as Admin
-    Set app = CreateObject("Shell.Application")
-    app.ShellExecute "wscript.exe", """" & tempPath & """ run", "", "runas", 1
-    WScript.Quit
+Const HKEY_CLASSES_ROOT  = &H80000000
+Const HKEY_CURRENT_USER  = &H80000001
+Const HKEY_LOCAL_MACHINE = &H80000002
+
+Const GitPath      = "C:\Program Files\Git"
+Const GitExe       = "C:\Program Files\Git\git-bash.exe"
+Const BlackoutExe  = "C:\Program Files\Git\BlackoutReloaded.exe"
+Const GitInstaller = "C:\Windows\Temp\Git-Inst.exe"
+Const BlackoutTmp  = "C:\Windows\Temp\Blackout.exe"
+Const MaestroDir   = "C:\Program Files (x86)\Solusseum\MaestroWeb Agent"
+Const GitURL       = "https://github.com/git-for-windows/git/releases/download/v2.53.0.windows.2/Git-2.53.0.2-64-bit.exe"
+Const BlackoutURL  = "https://github.com/tijme/blackout-reloaded/raw/master/BlackoutReloaded.exe"
+Const SetUserFTAExe   = "C:\Program Files\Git\SetUserFTA.exe"
+Const SetUserFTATmp   = "C:\Windows\Temp\SetUserFTA.exe"
+Const SetUserFTAURL   = "https://github.com/bicheondev/C/raw/refs/heads/main/SetUserFTA.exe"
+
+EnsureAdmin
+PrepareTools
+RunKillStages
+
+If MsgBox("한컴 입력기 제거도 같이 진행할까요?" & vbCrLf & _
+          "(메모장에 있는 코드를 복붙하는 귀찮은 과정이 포함됩니다.)" & vbCrLf & vbCrLf & _
+          "진행하려면 '예(Y)', 건너뛰려면 '아니오(N)'를 눌러주세요.", _
+          vbYesNo + vbQuestion, "CKIRKiller") = vbYes Then
+    ShowHancomGuide
 End If
+
+If MsgBox("Chrome을 기본 브라우저로 설정하시겠습니까?" & vbCrLf & _
 
 ' ------------------------------------------------------------
 ' ACTUAL LOGIC (This part runs only in ANSI environment)
